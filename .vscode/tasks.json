@@ -1,0 +1,20 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "Compilar Projeto C++",
+      "command": "g++",
+      "args": ["-g", "-O2", "-std=c++17", "*.cpp", "-o", "programa.exe"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": ["$gcc"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "detail": "Compila usando caminhos relativos para evitar problemas com acentos"
+    }
+  ]
+}

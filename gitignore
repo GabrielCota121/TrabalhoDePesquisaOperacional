@@ -1,0 +1,41 @@
+### --- Sistema Operacional (Windows, Linux, Mac) ---
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.Trashes
+
+# Linux
+.directory
+*~
+
+### --- Compilação (C++) ---
+# Arquivos Objeto e Binários gerados pelo Makefile
+*.o
+*.obj
+*.out
+
+# Executáveis gerados no Windows, Linux e Mac
+programa
+programa.exe
+
+### --- Editores de Código / IDEs ---
+# VS Code (Configurações locais que não devem ir para o Git)
+.vscode/
+
+# Histórico local do VS Code
+.history/
+
+### --- Arquivos Extras (Opcional) ---
+# Se você gera arquivos de log temporários durante os testes
+*.log
