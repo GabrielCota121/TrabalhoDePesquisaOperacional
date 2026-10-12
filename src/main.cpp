@@ -1,108 +1,157 @@
+#include <chrono>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
 #include <iostream>
-#include "Grafo.hpp"
-#include "Cliente.hpp"
-#include <vector>
 #include <string>
-#include <fstream>
-#include <sstream>
-#include <cctype> // Necessário para std::isalpha
+#include <vector>
 
-int main(){
-    // Exemplo usando o caminho relativo correto baseado nas suas pastas do VS Code
-    std::string filename = "Instances/f_data/f_c101.txt";
+#include "Grafo.hpp"
+#include "Rng.hpp"
+#include "Solucao.hpp"
+#include "Verificador.hpp"
+#include "Grasp.hpp"
+#include "GraspReativo.hpp"
+#include "GraspRvnd.hpp"
+#include "Rvnd.hpp"
+#include "Ils.hpp"
+#include "Vns.hpp"
+#include "GaHibrido.hpp"
+#include "AcoSincronizado.hpp"
+#include "BuscaTabu.hpp"
+#include "AlnsSincronizado.hpp"
 
-    // O programa descobre se tem 3 lixos verificando se "f2" NÃO está no nome/caminho do arquivo
-    bool tem3Demandas = (filename.find("f2") == std::string::npos);
+struct Parametros {
+    int nBase = 50, multiStart = 1000, treino = 300, ils = 1000, vns = 1000, alns = 1000, tabu = 500;
+    int tenure = 10, gaGeracoes = 50, acoCiclos = 30;
+};
 
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "Erro ao abrir o arquivo: " << filename << std::endl;
+struct Resultado {
+    std::string nome;
+    std::vector<double> lucros, tempos;
+    int invalidas = 0;
+};
+
+using Clock = std::chrono::steady_clock;
+static double seg(Clock::time_point a) { return std::chrono::duration<double>(Clock::now() - a).count(); }
+
+static Resultado& obter(std::vector<Resultado>& rs, const std::string& nome) {
+    for (auto& r : rs) if (r.nome == nome) return r;
+    rs.push_back({nome, {}, {}, 0});
+    return rs.back();
+}
+
+// Toda solucao passa pelo validador independente antes de entrar nas estatisticas.
+static void registrar(std::vector<Resultado>& rs, const std::string& nome, const Solucao& s, double t, const Grafo& I) {
+    Resultado& r = obter(rs, nome);
+    std::string msg;
+    if (!Verificador::validar(s, I, msg)) {
+        r.invalidas++;
+        std::fprintf(stderr, "[INVALIDA] %s: %s\n", nome.c_str(), msg.c_str());
+        return;
+    }
+    r.lucros.push_back(s.lucroTotal);
+    r.tempos.push_back(t);
+}
+
+int main(int argc, char** argv) {
+    std::string arquivo = "Instances/f_data/f_rc103.txt";
+    int nClientes = 15, execucoes = 5;
+    bool ponderado = false, rapido = false;   // padrao = nao ponderado (tabela principal do artigo, familia f2)
+    unsigned long semente = 2026;
+    int pos = 0;
+    for (int i = 1; i < argc; ++i) {
+        if (!std::strcmp(argv[i], "--rapido")) rapido = true;
+        else if (!std::strcmp(argv[i], "--nao-ponderado")) ponderado = false;
+        else if (!std::strcmp(argv[i], "--ponderado")) ponderado = true;
+        else if (!std::strcmp(argv[i], "--semente") && i + 1 < argc) semente = std::stoul(argv[++i]);
+        else if (!std::strcmp(argv[i], "--execucoes") && i + 1 < argc) execucoes = std::stoi(argv[++i]);
+        else if (!std::strcmp(argv[i], "--clientes") && i + 1 < argc) nClientes = std::stoi(argv[++i]);
+        else if (pos == 0) { arquivo = argv[i]; ++pos; }
+        else { std::fprintf(stderr, "argumento desconhecido: %s\n", argv[i]); return 1; }
+    }
+    Parametros P;
+    if (rapido) P = {10, 40, 12, 30, 20, 100, 30, 10, 5, 4};
+
+    Grafo I;
+    std::string erro;
+    if (!Grafo::carregar(arquivo, nClientes, ponderado, I, erro)) {
+        std::cerr << "Erro: " << erro << "\n";
         return 1;
     }
+    std::printf("Instancia %s: %d clientes, %d residuos, %s, H=%.0f\n", arquivo.c_str(), I.n() - 1, I.numLixos,
+                ponderado ? "ponderado" : "nao ponderado", I.horizonte);
+    std::printf("%d execucoes (sementes %lu..%lu)%s\n\n", execucoes, semente, semente + execucoes - 1, rapido ? " [modo rapido]" : "");
 
-    std::vector<Cliente> clientes;
-    Grafo grafo;
-    std::string line;
+    std::vector<Resultado> rs;
+    for (int e = 0; e < execucoes; ++e) {
+        Rng rng(semente + e);
 
-    while (std::getline(file, line)) {
-        std::istringstream iss(line);
-        
-        int id, xCoord, yCoord, demandWasteType1, demandWasteType2;
-        
-        // Tenta ler os 5 primeiros inteiros. 
-        if (!(iss >> id >> xCoord >> yCoord >> demandWasteType1 >> demandWasteType2)) {
-            continue; 
-        }
-
-        int demandWasteType3 = 0; // Valor padrão inicial
-
-        // Se a instância possuir 3 lixos, lê a coluna d3
-        if (tem3Demandas) {
-            if (!(iss >> demandWasteType3)) {
-                std::cerr << "Erro ao ler a terceira demanda do cliente ID: " << id << std::endl;
-                continue;
+        // Solucao-base: melhor de nBase construcoes (mesmo esforco para GRASP estatico e reativo)
+        for (int modo = 0; modo < 2; ++modo) {
+            const std::string pre = modo == 0 ? "Estatico" : "Reativo";
+            auto t0 = Clock::now();
+            Solucao base;
+            bool tem = false;
+            GraspReativo gr({1, 2, 3, 5, 8}, 20);
+            Grasp gs(3);
+            for (int i = 0; i < P.nBase; ++i) {
+                Solucao s;
+                int idx = 0;
+                if (modo == 0) s = gs.construirSolucaoInicial(I, rng);
+                else { idx = gr.escolherK(rng); s = gr.construirSolucaoInicial(I, idx, rng); gr.registrarResultado(idx, s.lucroTotal); }
+                if (!tem || s.lucroTotal > base.lucroTotal) { base = s; tem = true; }
             }
+            registrar(rs, pre + ": GRASP (base)", base, seg(t0), I);
+
+            Solucao s = base;
+            t0 = Clock::now(); { Rvnd rv(rng); rv.otimizar(s, I); }
+            registrar(rs, pre + ": base + RVND", s, seg(t0), I);
+
+            t0 = Clock::now();
+            s = Ils::otimizar(base, P.ils, I, rng);
+            registrar(rs, pre + ": base + ILS", s, seg(t0), I);
+
+            t0 = Clock::now();
+            s = Vns::otimizar(base, P.vns, I, rng);
+            registrar(rs, pre + ": base + VNS", s, seg(t0), I);
+
+            t0 = Clock::now();
+            { AlnsSincronizado alns(rng); s = alns.otimizar(base, P.alns, I); }
+            registrar(rs, pre + ": base + ALNS", s, seg(t0), I);
+
+            t0 = Clock::now();
+            s = BuscaTabu::otimizar(base, P.tabu, P.tenure, I, rng);
+            registrar(rs, pre + ": base + Tabu", s, seg(t0), I);
+
+            // Metodo do artigo: multi-start GRASP -> RVND com aprendizado online
+            t0 = Clock::now();
+            if (modo == 0) s = graspRvnd(I, P.multiStart, P.treino, rng, 3);
+            else { GraspReativo g2({1, 2, 3, 5, 8}, 20); s = graspRvnd(I, P.multiStart, P.treino, rng, 3, &g2); }
+            registrar(rs, pre + ": GRASP-RVND multi-start", s, seg(t0), I);
         }
 
-        int readyTime, dueDateNarrow, dueDate, dueDateWide, service, bidNarrow, bid, bidWide;
-
-        // Lê o restante das colunas na ordem correta
-        if (!(iss >> readyTime >> dueDateNarrow >> dueDate >> dueDateWide >> service >> bidNarrow >> bid >> bidWide)) {
-            std::cerr << "Erro ao ler os dados complementares do cliente ID: " << id << std::endl;
-            continue;
-        }
-
-        // Cria e armazena o cliente
-        grafo.criaSolucaoCliente(clientes, id, xCoord, yCoord, demandWasteType1, demandWasteType2, 
-                                 readyTime, dueDateNarrow, dueDate, dueDateWide, service, 
-                                 bidNarrow, bid, bidWide, demandWasteType3);
+        // Metodos que nao dependem da solucao-base (executados uma unica vez)
+        auto t0 = Clock::now();
+        { GaHibrido ga(40, 8, 6, 0.7, 0.3); Solucao s = ga.otimizar(P.gaGeracoes, I, rng); registrar(rs, "GA hibrido (BRKGA)", s, seg(t0), I); }
+        t0 = Clock::now();
+        { AcoSincronizado aco(10, 1.0, 2.0, 0.1, 1.0); Solucao s = aco.otimizar(P.acoCiclos, I, rng); registrar(rs, "ACO memetico", s, seg(t0), I); }
+        std::fprintf(stderr, "execucao %d/%d concluida\n", e + 1, execucoes);
     }
 
-    file.close();
-
-    std::cout << "Sucesso: " << clientes.size() << " clientes carregados." << std::endl;
-    std::cout << "Tipo de instancia detectada: " << (tem3Demandas ? "3 tipos de residuos" : "2 tipos de residuos") << std::endl;
-
-    // Calcula a matriz de distâncias
-    std::cout << "Calculando matriz de adjacencia..." << std::endl;
-    std::vector<std::vector<double>> matriz = grafo.criarMatrizAdjacencia(clientes);
-
-    // Exibe a matriz de adjacência completa na tela
-    std::cout << "\n--- MATRIZ DE ADJACENCIA COMPLETA (Tempos de Viagem) ---" << std::endl;
-    
-    // Configura a impressão para mostrar apenas 2 casas decimais
-    std::cout << std::fixed;
-    std::cout.precision(2);
-
-    for (size_t i = 0; i < matriz.size(); ++i) {
-        std::cout << "Cliente " << i << ": ";
-        for (size_t j = 0; j < matriz[i].size(); ++j) {
-            std::cout << matriz[i][j] << "\t";
-        }
-        std::cout << std::endl; 
+    std::printf("%-34s %12s %12s %10s %10s %6s\n", "Metodo", "Melhor", "Media", "Desvio", "Tempo(s)", "Invalid");
+    std::printf("%s\n", std::string(90, '-').c_str());
+    for (const auto& r : rs) {
+        if (r.lucros.empty()) { std::printf("%-34s %12s %12s %10s %10s %6d\n", r.nome.c_str(), "-", "-", "-", "-", r.invalidas); continue; }
+        double mx = r.lucros[0], m = 0, t = 0;
+        for (double x : r.lucros) { mx = std::max(mx, x); m += x; }
+        m /= r.lucros.size();
+        double v = 0;
+        for (double x : r.lucros) v += (x - m) * (x - m);
+        v = std::sqrt(v / r.lucros.size());
+        for (double x : r.tempos) t += x;
+        t /= r.tempos.size();
+        std::printf("%-34s %12.2f %12.2f %10.2f %10.2f %6d\n", r.nome.c_str(), mx, m, v, t, r.invalidas);
     }
-    std::cout << "--------------------------------------------------------\n" << std::endl;
-
-    
-    std::cout << "--- DADOS DETALHADOS DOS CLIENTES ---" << std::endl;
-    for (const auto& cliente : clientes) {
-        std::cout << "Cliente ID: " << cliente.getId() 
-                  << ", Coordenadas: (" << cliente.getXCoord() << ", " << cliente.getYCoord() << ")"
-                  << ", Demanda Tipo 1: " << cliente.getDemandWasteType1()
-                  << ", Demanda Tipo 2: " << cliente.getDemandWasteType2();
-        if (tem3Demandas) {
-            std::cout << ", Demanda Tipo 3: " << cliente.getDemandWasteType3();
-        }
-        std::cout << ", Ready Time: " << cliente.getReadyTime()
-                  << ", Due Date Narrow: " << cliente.getDueDateNarrow()
-                  << ", Due Date: " << cliente.getDueDate()
-                  << ", Due Date Wide: " << cliente.getDueDateWide()
-                  << ", Service: " << cliente.getService()
-                  << ", Bid Narrow: " << cliente.getBidNarrow()
-                  << ", Bid: " << cliente.getBid()
-                  << ", Bid Wide: " << cliente.getBidWide()
-                  << std::endl;
-    }
-
     return 0;
 }

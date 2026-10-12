@@ -1,59 +1,31 @@
 #ifndef CLIENTE_HPP
 #define CLIENTE_HPP
-#include <vector>
-#include <string>
-#include <cmath>
+
+#include <array>
+
+// Janelas: indice 0 = Narrow, 1 = Base, 2 = Wide (mesma convencao do artigo/instancias).
 class Cliente {
-    private:
-        int id;
-        int xCoord;
-        int yCoord;
-        int demandWasteType1;
-        int demandWasteType2;
-        int demandWasteType3;
-        int readyTime;
-        int dueDateNarrow;
-        int dueDate;
-        int dueDateWide;
-        int service;
-        int bidNarrow;
-        int bid;
-        int bidWide;
+    int id_;
+    double x_, y_;
+    std::array<int, 3> dem_;     // demanda por tipo de residuo
+    double ready_;               // abertura da janela (unica nos arquivos)
+    std::array<double, 3> due_;  // fechamento por janela
+    double service_;
+    std::array<double, 3> bid_;  // lance por janela
 
-    public:
-        Cliente(int id, int xCoord, int yCoord, int demandWasteType1, int demandWasteType2, int readyTime, int dueDateNarrow, int dueDate, int dueDateWide, int service, int bidNarrow, int bid, int bidWide, int demandWasteType3 = 0) {
+public:
+    Cliente(int id, double x, double y, const std::array<int, 3>& dem, double ready,
+            const std::array<double, 3>& due, double service, const std::array<double, 3>& bid)
+        : id_(id), x_(x), y_(y), dem_(dem), ready_(ready), due_(due), service_(service), bid_(bid) {}
 
-            this->id = id;
-            this->xCoord = xCoord;
-            this->yCoord = yCoord;
-            this->demandWasteType1 = demandWasteType1;
-            this->demandWasteType2 = demandWasteType2;
-            this->demandWasteType3 = demandWasteType3;
-            this->readyTime = readyTime;
-            this->dueDateNarrow = dueDateNarrow;
-            this->dueDate = dueDate;
-            this->dueDateWide = dueDateWide;
-            this->service = service;
-            this->bidNarrow = bidNarrow;
-            this->bid = bid;
-            this->bidWide = bidWide;
-        }
-
-        int getId() const { return id; }
-        int getXCoord() const { return xCoord; }
-        int getYCoord() const { return yCoord; }
-        int getDemandWasteType1() const { return demandWasteType1; }
-        int getDemandWasteType2() const { return demandWasteType2; }
-        int getDemandWasteType3() const { return demandWasteType3; }
-        int getReadyTime() const { return readyTime; }
-        int getDueDateNarrow() const { return dueDateNarrow; }
-        int getDueDate() const { return dueDate; }
-        int getDueDateWide() const { return dueDateWide; }
-        int getService() const { return service; }
-        int getBidNarrow() const { return bidNarrow; }
-        int getBid() const { return bid; }
-        int getBidWide() const { return bidWide; }
-
+    int id() const { return id_; }
+    double x() const { return x_; }
+    double y() const { return y_; }
+    int demanda(int w) const { return dem_[w]; }
+    double ready() const { return ready_; }
+    double due(int t) const { return due_[t]; }
+    double service() const { return service_; }
+    double bid(int t) const { return bid_[t]; }
 };
 
 #endif

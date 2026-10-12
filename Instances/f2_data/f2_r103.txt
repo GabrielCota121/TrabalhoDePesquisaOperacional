@@ -100,4 +100,3 @@ customer xCoord yCoord demandWasteType1 demandWasteType2 readyTime dueDateNarrow
 98 19 21 3 2 0 99 198 396 10 164 145 132
 99 20 26 8 7 83 88 93 103 10 143 126 115
 100 18 18 2 12 185 190 195 205 10 178 157 143
-0 35 35 0 0 0 230 230 230 0 0 0 0
