@@ -5,7 +5,7 @@ Esse trabalho contém o código do meu trabalho de Pesquisa Operacional, envolve
 
 2 Etapa Concluída: Criação de 2 soluções construtivas (GRASP e GRASP REATIVO -> GRASP REATIVO Foi Superior)
 
-3 Etapa Concluída: Criação de algoritmos para gerar perturbação na solução do GRASP REATIVO (ILS,VNS,RVND, ALNS além da busca tabu).
+3 Etapa Concluída: Criação de algoritmos para gerar perturbação na solução do GRASP E GRASP REATIVO (ILS,VNS,RVND, ALNS além da busca tabu).
 
 4 Etapa Concluída: Criação de meta-heurísticas avançadas como BRKGA Algoritmo de Colônia de Formigas
 
