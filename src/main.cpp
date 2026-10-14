@@ -55,9 +55,9 @@ static void registrar(std::vector<Resultado>& rs, const std::string& nome, const
 }
 
 int main(int argc, char** argv) {
-    std::string arquivo = "Instances/f_data/f_rc103.txt";
-    int nClientes = 15, execucoes = 5;
-    bool ponderado = false, rapido = false;   // padrao = nao ponderado (tabela principal do artigo, familia f2)
+    std::string arquivo = "Instances/ftc_data/ftc_c103.txt";
+    int nClientes = 50, execucoes = 5;
+    bool ponderado = true, rapido = false;   // padrao = nao ponderado (tabela principal do artigo, familia f2)
     unsigned long semente = 2026;
     int pos = 0;
     for (int i = 1; i < argc; ++i) {

@@ -16,8 +16,7 @@
 #include <vector>
 #include "Cliente.hpp"
 
-// Substitui a antiga classe Grafo: agrupa clientes, distancias e parametros do problema,
-// de modo que todas as funcoes recebam um unico "const Grafo&".
+
 struct Grafo {
     std::vector<Cliente> clientes;                // indice 0 = deposito
     std::vector<std::vector<double>> dist;
