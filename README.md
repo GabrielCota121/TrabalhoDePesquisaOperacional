@@ -11,3 +11,5 @@ Esse trabalho contém o código do meu trabalho de Pesquisa Operacional, envolve
 
 5 Comparação de resultados: Todas as soluções demonstraram sua validade, mas o GRASP REATIVO + VNS demonstrou sua superioridade em relação aos demais em termos de
 performance.
+
+6 Criação de uma Tabela em excel Contendo os resultados com GRASP REATIVO + VNS implementado em comparação com os resultados das implementações dos autores, que foram GRASP + RVND, além do gurobi para instâncias menores que geraram a validação do algoritmo e por fim a comparação com o GRASP + RVND dos autores além da busca tabu proposta pelos autores do artigo, o GRASP RVND e a busca tabu em geral demonstraram resultados inferiores ao GRASP REATIVO + VNS na grande maioria das instâncias executadas para instâncias maiores, onde o gurobi não foi executado pelos autores.
